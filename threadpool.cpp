@@ -21,8 +21,10 @@ ThreadPool::~ThreadPool()
 {
     isPoolRunning_=false;
     //等待线程池里所有的线程返回  有两种状态： 阻塞&正在执行任务中
-    notEmpty_.notify_all();
+   
+    //解决了线程池中线程先获取锁产生的死锁问题（taskQueMutex_）
     std::unique_lock<std::mutex>lock (taskQueMutex_);
+     notEmpty_.notify_all();
     exitCond_.wait(lock,[&]()->bool{return threads_.size()==0;});
 
 }
@@ -119,10 +121,10 @@ void ThreadPool::threadFunc(int threadid)
 
              //cached 模式下，空闲时间超过60s 应该把超过initTreadSize_的线程释放掉
              //当前时间-上一次线程执行的时间>60s
-         
-         
             //每一秒钟返回一次
-            while(taskSize_== 0)
+
+            //锁加双重判断      *****解决了main函数先获取锁而产生的死锁问题
+            while(isPoolRunning_&&taskSize_== 0)
             {   if(poolMode_==PoolMode::MODE_CACHED)
                 {
                     //条件变量 超时返回
@@ -152,18 +154,23 @@ void ThreadPool::threadFunc(int threadid)
                      
                 }
                 //线程池要结束，回收线程资源
-               if(!isPoolRunning_)
-               {
-                  threads_.erase(threadid);
+              // if(!isPoolRunning_)
+               //{
+                  //threads_.erase(threadid);
                         
-                  std::cout<<"threadid"<<std::this_thread::get_id()<<"exit"<<std::endl;
-                  exitCond_.notify_all();
-                  return;
+                 // std::cout<<"threadid"<<std::this_thread::get_id()<<"exit"<<std::endl;
+                 // exitCond_.notify_all();
+                  //return;
 
-               }
+              // }
             
              
          } 
+         //线程池要结束，回收线程资源
+         if(!isPoolRunning_)
+         {
+            break;
+         }
          
         
         idleThreadSize_--;

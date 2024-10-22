@@ -42,6 +42,6 @@ int main()
   uLong sum1=res1.get().cast_<uLong>();
   uLong sum2=res2.get().cast_<uLong>();
   uLong sum3=res3.get().cast_<uLong>();
-  std::cout<<"1"<<std::endl;
+  
   std::cout<<(sum1+sum2+sum3)<<std::endl; 
 }
