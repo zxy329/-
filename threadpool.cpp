@@ -111,9 +111,11 @@ Result ThreadPool::submitTask(std::shared_ptr<Task> sp)
 }
 void ThreadPool::threadFunc(int threadid)
 {
-    while(isPoolRunning_)
+    std::chrono::time_point<std::chrono::high_resolution_clock> lastTime=std::chrono::high_resolution_clock::now();
+    //修改线程池资源回收方法，使所有任务执行完后，线程池才可以回收所有线程
+    for(;;)
     {
-        std::chrono::time_point<std::chrono::high_resolution_clock> lastTime=std::chrono::high_resolution_clock::now();
+        
 
         std::shared_ptr<Task> task;
         {
@@ -124,8 +126,20 @@ void ThreadPool::threadFunc(int threadid)
             //每一秒钟返回一次
 
             //锁加双重判断      *****解决了main函数先获取锁而产生的死锁问题
-            while(isPoolRunning_&&taskSize_== 0)
-            {   if(poolMode_==PoolMode::MODE_CACHED)
+            while(taskSize_== 0)
+            {   
+                //线程池要结束，回收线程资源
+                if(!isPoolRunning_)
+                {
+                    threads_.erase(threadid);
+                        
+                    std::cout<<"threadid"<<std::this_thread::get_id()<<"exit"<<std::endl;
+                    exitCond_.notify_all();
+                    return ;//线程函数结束，线程结束
+    
+                }
+         
+                if(poolMode_==PoolMode::MODE_CACHED)
                 {
                     //条件变量 超时返回
                 if(std::cv_status::timeout==notEmpty_.wait_for(lock,std::chrono::seconds(1)))
@@ -166,11 +180,6 @@ void ThreadPool::threadFunc(int threadid)
             
              
          } 
-         //线程池要结束，回收线程资源
-         if(!isPoolRunning_)
-         {
-            break;
-         }
          
         
         idleThreadSize_--;
@@ -193,11 +202,7 @@ void ThreadPool::threadFunc(int threadid)
         
 
     }
-    threads_.erase(threadid);
-                        
-    std::cout<<"threadid"<<std::this_thread::get_id()<<"exit"<<std::endl;
-    exitCond_.notify_all();
-    
+   
 
 }
 
