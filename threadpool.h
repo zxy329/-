@@ -67,23 +67,31 @@ private:
 class Semaphore
 {
   public:
-  Semaphore(int size=0):size_(size)
+  Semaphore(int size=0):size_(size),isExit_(false)
   {}
-  ~Semaphore()=default;
+  ~Semaphore()
+  {
+    isExit_=true;
+  }
    void wait()
    {
+    if(isExit_)
+    return;
     std::unique_lock<std::mutex> lock(mutex_);
     cond_.wait(lock, [&]()->bool{return size_ > 0;});
     size_--;
    }
    void post()
    {
+    if(isExit_)
+    return;
     std::unique_lock<std::mutex> lock(mutex_);
     size_++;
-    cond_.notify_all(); 
-   }
+    cond_.notify_all(); //  1.等待状态  2.释放mutex锁
+    }
    private:
   int size_;
+  std::atomic_bool isExit_; 
   std::mutex mutex_;
   std::condition_variable cond_;
 

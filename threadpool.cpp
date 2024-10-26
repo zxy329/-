@@ -115,7 +115,7 @@ void ThreadPool::threadFunc(int threadid)
     //修改线程池资源回收方法，使所有任务执行完后，线程池才可以回收所有线程
     for(;;)
     {
-        
+          
 
         std::shared_ptr<Task> task;
         {
